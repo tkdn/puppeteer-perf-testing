@@ -2,6 +2,7 @@ const puppeteer = require("puppeteer");
 const lighthouse = require("lighthouse");
 const { URL } = require("url");
 const { writeFileSync } = require("fs");
+const { USER_AGENT, NETWORK_PRESETS } = require("./constatns");
 const perfConfig = {
     extends: "lighthouse:default",
     settings: {
@@ -11,37 +12,33 @@ const perfConfig = {
 };
 
 (async () => {
-    const url = "https://www.chromestatus.com/features";
+    const url = "https://example.com";
 
-    // Use Puppeteer to launch headful Chrome and don't use its default 800x600 viewport.
+    // Puppeteer を headful で起動 @TODO: UAなどの設定
     const browser = await puppeteer.launch({
         headless: false,
         defaultViewport: null
     });
 
-    // Wait for Lighthouse to open url, then customize network conditions.
-    // Note: this will re-establish these conditions when LH reloads the page. Think that's ok....
+    // Lighthouse が接続せれるまで待つためにイベントをオブザーブ
     browser.on("targetchanged", async target => {
         const page = await target.page();
+        // UserAgent をエミュレート
+        await page.emulate(USER_AGENT["Nexus 5"]);
 
         if (page && page.url() === url) {
-            // Note: can't use page.addStyleTag due to github.com/GoogleChrome/puppeteer/issues/1955.
-            // Do it ourselves.
-            await page.target().createCDPSession();
+            const client = await page.target().createCDPSession();
+            // ネットワーク 3G にエミュレート
+            await client.send("Network.emulateNetworkConditions", NETWORK_PRESETS.Regular2G);
         }
     });
 
-    // Lighthouse will open URL. Puppeteer observes `targetchanged` and sets up network conditions.
-    // Possible race condition.
-    const { lhr } = await lighthouse(
-        url,
-        {
-            port: new URL(browser.wsEndpoint()).port,
-            output: "json",
-            logLevel: "info"
-        },
-        perfConfig
-    );
+    // Puppeteer が監視するイベントで接続が確立されたら Lighthouse が起動できるようにしておく
+    const { lhr } = await lighthouse(url, {
+        port: new URL(browser.wsEndpoint()).port,
+        output: "json",
+        logLevel: "info"
+    });
 
     writeFileSync("results.json", JSON.stringify(lhr, null, 4));
 
