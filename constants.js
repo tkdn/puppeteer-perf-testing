@@ -1,5 +1,8 @@
 const USER_AGENT = require("puppeteer/DeviceDescriptors");
 
+const DEVTOOLS_RTT_ADJUSTMENT_FACTOR = 3.75;
+const DEVTOOLS_THROUGHPUT_ADJUSTMENT_FACTOR = 0.9;
+
 /** @link https://fdalvi.github.io/blog/2018-02-05-puppeteer-network-throttle/ */
 const NETWORK_PRESETS = {
     GPRS: {
@@ -54,5 +57,7 @@ const NETWORK_PRESETS = {
 
 module.exports = {
     NETWORK_PRESETS,
-    USER_AGENT
+    USER_AGENT,
+    DEVTOOLS_RTT_ADJUSTMENT_FACTOR,
+    DEVTOOLS_THROUGHPUT_ADJUSTMENT_FACTOR
 };

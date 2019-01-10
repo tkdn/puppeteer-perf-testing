@@ -2,21 +2,27 @@ const puppeteer = require("puppeteer");
 const lighthouse = require("lighthouse");
 const { URL } = require("url");
 const { writeFileSync } = require("fs");
-const { USER_AGENT, NETWORK_PRESETS } = require("./constants");
+const { USER_AGENT } = require("./constants");
 const perfConfig = {
     extends: "lighthouse:default",
     settings: {
-        throttlingMethod: "devtools",
-        onlyCategories: ["performance"]
+        throttlingMethod: "simulate", // default: "simulate", and other "devtools"
+        throttling: {
+            rttMs: 150,
+            throughputKbps: 1.6 * 1024,
+            requestLatencyMs: 150,
+            downloadThroughputKbps: 1.6 * 1024,
+            uploadThroughputKbps: 750,
+            cpuSlowdownMultiplier: 4
+        }
     }
 };
 
 (async () => {
-    const url = "https://example.com";
+    const url = "";
 
-    // Puppeteer を headful で起動 @TODO: UAなどの設定
+    // Puppeteer を headful で起動
     const browser = await puppeteer.launch({
-        headless: false,
         defaultViewport: null
     });
 
@@ -28,17 +34,20 @@ const perfConfig = {
 
         if (page && page.url() === url) {
             const client = await page.target().createCDPSession();
-            // ネットワーク 3G にエミュレート
-            await client.send("Network.emulateNetworkConditions", NETWORK_PRESETS.Regular2G);
+            // await client.send("Network.emulateNetworkConditions", NETWORK_PRESETS.Regular2G);
         }
     });
 
     // Puppeteer が監視するイベントで接続が確立されたら Lighthouse が起動できるようにしておく
-    const { lhr } = await lighthouse(url, {
-        port: new URL(browser.wsEndpoint()).port,
-        output: "json",
-        logLevel: "info"
-    });
+    const { lhr } = await lighthouse(
+        url,
+        {
+            port: new URL(browser.wsEndpoint()).port,
+            output: "json",
+            logLevel: "info"
+        },
+        perfConfig
+    );
 
     writeFileSync("results.json", JSON.stringify(lhr, null, 4));
 
